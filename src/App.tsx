@@ -46,6 +46,7 @@ export function App() {
   const [data, setData] = useState<AppData>(() => loadData());
   const [tab, setTab] = useState<Tab>('home');
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [exchangeState, setExchangeState] = useState<Reward | null>(null);
   const [pinState, setPinState] = useState<PinState>(null);
   const [toast, setToast] = useState<string>('');
   const [adminMode, setAdminMode] = useState<'tasks' | 'rewards' | null>(null);
@@ -137,20 +138,24 @@ export function App() {
 
   function exchangeReward(reward: Reward) {
     if (data.crowns < reward.cost) return;
-    setDialog({
-      type: 'confirm',
-      title: '确认兑换',
-      message: `兑换「${reward.name}」需要 ${reward.cost} 个皇冠。`,
-      confirmText: '兑换',
-      onConfirm: () => {
-        patchData(current => {
-          current.crowns -= reward.cost;
-          current.history.unshift(addHistory(`兑换 ${reward.name}`, -reward.cost, 'spend'));
-          setToast('兑换成功');
-          return current;
-        });
-      },
+    setExchangeState(reward);
+  }
+
+  function confirmExchangeReward() {
+    if (!exchangeState) return;
+    const reward = exchangeState;
+    if (data.crowns < reward.cost) {
+      setExchangeState(null);
+      setToast('皇冠不够');
+      return;
+    }
+    patchData(current => {
+      current.crowns -= reward.cost;
+      current.history.unshift(addHistory(`兑换 ${reward.name}`, -reward.cost, 'spend'));
+      setToast('兑换成功');
+      return current;
     });
+    setExchangeState(null);
   }
 
   function requirePin(action: () => void) {
@@ -434,6 +439,12 @@ export function App() {
       ) : null}
 
       {dialog ? <Dialog state={dialog} onClose={() => setDialog(null)} /> : null}
+      <ExchangeModal
+        reward={exchangeState}
+        crowns={data.crowns}
+        onClose={() => setExchangeState(null)}
+        onConfirm={confirmExchangeReward}
+      />
       {showCertificate ? (
         <CertificateModal
           childName={data.childName}
@@ -698,6 +709,58 @@ function HistoryModal({ history, onClose }: { history: HistoryItem[]; onClose: (
         </div>
         <div className="modal-actions single">
           <button onClick={onClose}>关闭</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExchangeModal({
+  reward,
+  crowns,
+  onClose,
+  onConfirm,
+}: {
+  reward: Reward | null;
+  crowns: number;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const canExchange = reward ? crowns >= reward.cost : false;
+
+  return (
+    <div className={`exchange-modal-backdrop ${reward ? 'show' : ''}`} onClick={onClose}>
+      <div className="exchange-modal-shell" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+        <svg className="exchange-modal-clip" aria-hidden>
+          <clipPath id="exchange-modal-blob" clipPathUnits="objectBoundingBox">
+            <path d="M0.501,0.005 L0.523,0.005 L0.549,0.006 C0.704,0.01,0.796,0.017,0.825,0.027 L0.827,0.028 C0.872,0.045,0.939,0.044,0.978,0.17 C1,0.254,1,0.365,0.99,0.505 L0.988,0.513 C0.979,0.558,0.971,0.598,0.965,0.633 C0.956,0.689,0.979,0.77,0.964,0.865 C0.953,0.928,0.921,0.966,0.869,0.979 C0.821,0.986,0.773,0.992,0.726,0.995 L0.694,0.997 C0.648,1,0.586,1,0.507,1 L0.464,1 C0.385,1,0.325,0.998,0.283,0.995 C0.234,0.992,0.184,0.987,0.133,0.979 C0.081,0.966,0.05,0.928,0.039,0.865 C0.023,0.77,0.047,0.689,0.037,0.633 C0.031,0.595,0.023,0.552,0.013,0.505 C-0.006,0.365,-0.002,0.254,0.024,0.17 C0.064,0.045,0.13,0.045,0.174,0.028 C0.204,0.017,0.303,0.009,0.474,0.005 L0.501,0.005" />
+          </clipPath>
+        </svg>
+        <div className="exchange-modal-panel">
+          <div className="exchange-modal-title">兑换礼物</div>
+          {reward ? (
+            <div className="exchange-modal-content">
+              <div className="exchange-modal-icon">
+                <IslandIcon name="gift" />
+              </div>
+              <h3>{reward.name}</h3>
+              <p>需要交出这些皇冠来换礼物。</p>
+              <div className="exchange-modal-cost">
+                <span>
+                  <IslandIcon name="crown" /> 需要 {reward.cost}
+                </span>
+                <span>
+                  <IslandIcon name="crown" /> 现有 {crowns}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          <div className="exchange-modal-actions">
+            <button onClick={onClose}>再想想</button>
+            <button onClick={onConfirm} disabled={!canExchange}>
+              确认兑换
+            </button>
+          </div>
         </div>
       </div>
     </div>
