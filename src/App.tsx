@@ -50,6 +50,7 @@ export function App() {
   const [toast, setToast] = useState<string>('');
   const [adminMode, setAdminMode] = useState<'tasks' | 'rewards' | null>(null);
   const [confetti, setConfetti] = useState(0);
+  const [crownBurst, setCrownBurst] = useState(0);
   const [animatedTaskId, setAnimatedTaskId] = useState<number | null>(null);
   const [showCertificate, setShowCertificate] = useState(false);
   const [exportingCertificate, setExportingCertificate] = useState(false);
@@ -70,6 +71,12 @@ export function App() {
     const timer = window.setTimeout(() => setConfetti(0), 1300);
     return () => window.clearTimeout(timer);
   }, [confetti]);
+
+  useEffect(() => {
+    if (!crownBurst) return;
+    const timer = window.setTimeout(() => setCrownBurst(0), 1500);
+    return () => window.clearTimeout(timer);
+  }, [crownBurst]);
 
   const totalStars = useMemo(() => data.tasks.reduce((sum, task) => sum + task.score, 0), [data.tasks]);
   const today = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
@@ -94,6 +101,7 @@ export function App() {
   }
 
   function addScore(taskId: number) {
+    playFeedbackSound('star');
     setAnimatedTaskId(taskId);
     window.setTimeout(() => setAnimatedTaskId(current => (current === taskId ? null : current)), 420);
     patchData(current => {
@@ -107,6 +115,8 @@ export function App() {
         current.history.unshift(addHistory('满 10 颗星自动换成皇冠', 1, 'add'));
         setToast('太棒了，获得 1 个皇冠');
         setConfetti(Date.now());
+        setCrownBurst(Date.now());
+        playFeedbackSound('crown');
       } else {
         setToast(`${task.name} 加 1 颗星`);
       }
@@ -350,6 +360,7 @@ export function App() {
   return (
     <div className="app-shell">
       {confetti ? <Confetti /> : null}
+      {crownBurst ? <CrownBurst /> : null}
       <header className="top-bar">
         <button className="avatar-button" onClick={changeName} aria-label="修改名字">
           {data.childName.slice(0, 1)}
@@ -477,8 +488,8 @@ function TaskSection({
       <h2 className="section-title">{title}</h2>
       <div className="task-grid">
         {tasks.map(task => (
-          <article className={`task-card tone-${task.tone}`} key={task.id}>
-            <button className={`task-icon color-${task.tone} ${animatedTaskId === task.id ? 'is-bouncing' : ''}`} onClick={() => onAddScore(task.id)} aria-label={`给${task.name}加星`}>
+          <article className={`task-card tone-${task.tone} ${task.score >= 7 ? 'is-near-complete' : ''} ${animatedTaskId === task.id ? 'is-tapped' : ''}`} key={task.id} onClick={() => onAddScore(task.id)}>
+            <button className={`task-icon color-${task.tone} ${animatedTaskId === task.id ? 'is-bouncing' : ''}`} onClick={event => { event.stopPropagation(); onAddScore(task.id); }} aria-label={`给${task.name}加星`}>
               <span className="task-icon-glyph">
                 <TaskIcon name={task.icon} />
               </span>
@@ -489,16 +500,13 @@ function TaskSection({
                 <span className="empty-stars">做任务领星星</span>
               ) : (
                 Array.from({ length: task.score }).map((_, index) => (
-                  <button className="star-button" key={index} onClick={() => onRemoveScore(task.id)} aria-label="撤回一颗星">
+                  <button className="star-button" key={index} onClick={event => { event.stopPropagation(); onRemoveScore(task.id); }} aria-label="撤回一颗星">
                     <IslandIcon name="star" />
                   </button>
                 ))
               )}
             </div>
             <p>{task.score >= 10 ? '可以兑换皇冠' : `还差 ${10 - task.score} 颗`}</p>
-            <button className="add-button" onClick={() => onAddScore(task.id)} aria-label={`给${task.name}加星`}>
-              <IslandIcon name="plus" />
-            </button>
           </article>
         ))}
       </div>
@@ -518,13 +526,6 @@ function RewardsView({
   return (
     <section>
       <h2 className="section-title">奖励兑换</h2>
-      <div className="shop-banner">
-        <IslandIcon name="gift" />
-        <div>
-          <strong>奖励小铺</strong>
-          <span>当前可用皇冠：{crowns}</span>
-        </div>
-      </div>
       <div className="reward-list">
         {rewards.map(reward => {
           const canExchange = crowns >= reward.cost;
@@ -943,6 +944,17 @@ function Confetti() {
   );
 }
 
+function CrownBurst() {
+  return (
+    <div className="crown-burst" aria-hidden="true">
+      <div className="crown-burst-badge">
+        <IslandIcon name="crown" />
+        <span>皇冠 +1</span>
+      </div>
+    </div>
+  );
+}
+
 function loadData(): AppData {
   try {
     const saved = localStorage.getItem(storageKey);
@@ -1028,6 +1040,34 @@ function readString(value: unknown): string | null {
 
 function readNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function playFeedbackSound(type: 'star' | 'crown') {
+  try {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const now = context.currentTime;
+    const gain = context.createGain();
+    gain.connect(context.destination);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(type === 'crown' ? 0.12 : 0.07, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + (type === 'crown' ? 0.32 : 0.16));
+
+    const tones = type === 'crown' ? [659, 880, 1175] : [660, 880];
+    tones.forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, now + index * 0.055);
+      oscillator.connect(gain);
+      oscillator.start(now + index * 0.055);
+      oscillator.stop(now + index * 0.055 + 0.13);
+    });
+
+    window.setTimeout(() => void context.close(), 420);
+  } catch {
+    // Sound feedback is optional; ignore browsers that block it.
+  }
 }
 
 function buildCertificateSvg({

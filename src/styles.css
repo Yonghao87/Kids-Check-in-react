@@ -45,7 +45,7 @@ button {
 }
 
 .app-shell {
-  width: min(100%, 720px);
+  width: min(100%, 960px);
   min-height: 100vh;
   margin: 0 auto;
   padding: max(14px, env(safe-area-inset-top)) 14px calc(104px + var(--safe-bottom));
@@ -145,15 +145,41 @@ svg {
 }
 
 .task-card {
-  min-height: 206px;
-  padding: 16px 12px 14px;
+  min-height: 178px;
+  padding: 16px 12px 12px;
   text-align: center;
   border-radius: 22px 18px 25px 20px / 20px 24px 18px 25px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, filter 0.18s ease;
 }
 
 .task-card:hover {
   transform: translateY(-2px);
+}
+
+.task-card.is-tapped {
+  animation: taskTapPop 0.32s ease-out;
+}
+
+.task-card.is-near-complete {
+  border-color: #f7cd67;
+  box-shadow:
+    0 0 0 3px rgba(247, 205, 103, 0.26),
+    0 8px 0 rgba(219, 169, 14, 0.38),
+    0 18px 30px rgba(247, 205, 103, 0.18);
+}
+
+.task-card.is-near-complete .star-row {
+  border-color: rgba(219, 169, 14, 0.46);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 248, 231, 0.94), rgba(255, 247, 221, 0.78));
+  box-shadow: inset 0 0 0 2px rgba(247, 205, 103, 0.24);
+}
+
+.task-card.is-near-complete .star-button {
+  color: #f0b400;
+  filter: drop-shadow(0 0 5px rgba(247, 205, 103, 0.72));
+  animation: starGlow 1.4s ease-in-out infinite;
 }
 
 .tone-blue { background: #eef2ff; border-color: #889df0; }
@@ -180,9 +206,9 @@ svg {
 }
 
 .task-icon {
-  width: 66px;
-  height: 66px;
-  margin: 0 auto 12px;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 10px;
   display: grid;
   place-items: center;
   position: relative;
@@ -204,8 +230,8 @@ svg {
 }
 
 .task-icon svg {
-  width: 43px;
-  height: 43px;
+  width: 38px;
+  height: 38px;
   position: relative;
   color: #fff8e7;
   filter: drop-shadow(0 3px 0 rgba(121, 79, 39, 0.14));
@@ -251,6 +277,23 @@ svg {
   }
 }
 
+@keyframes taskTapPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.025) translateY(-2px); }
+  100% { transform: scale(1); }
+}
+
+@keyframes starGlow {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12) rotate(-5deg);
+  }
+}
+
 .task-card h3,
 .reward-card h3 {
   margin: 0 0 10px;
@@ -259,13 +302,13 @@ svg {
 
 .task-card p {
   min-height: 20px;
-  margin: 8px 0 10px;
+  margin: 8px 0 0;
   color: var(--island-muted);
   font-size: 0.82rem;
 }
 
 .star-row {
-  min-height: 34px;
+  min-height: 32px;
   padding: 6px;
   display: flex;
   align-items: center;
@@ -283,8 +326,8 @@ svg {
 }
 
 .star-button {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 0;
   color: #f5c31c;
@@ -375,19 +418,9 @@ svg {
 }
 
 .reward-list {
-  position: relative;
-  gap: 16px;
-  padding: 12px 0 6px;
-}
-
-.reward-list::before {
-  content: "";
-  position: absolute;
-  inset: 16px 8px auto;
-  height: calc(100% - 18px);
-  border-radius: 24px;
-  background: linear-gradient(90deg, rgba(215, 181, 108, 0.18), rgba(255, 248, 231, 0.45));
-  pointer-events: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0 0 6px;
 }
 
 .reward-card,
@@ -405,7 +438,11 @@ svg {
 .reward-card {
   position: relative;
   isolation: isolate;
-  min-height: 96px;
+  min-height: 172px;
+  grid-template-columns: 1fr;
+  align-content: space-between;
+  justify-items: start;
+  gap: 10px;
   padding: 16px;
   overflow: hidden;
   background:
@@ -428,8 +465,8 @@ svg {
 }
 
 .reward-icon {
-  width: 62px;
-  height: 62px;
+  width: 58px;
+  height: 58px;
   margin: 0;
   border-radius: 23px;
   color: #fff8e7;
@@ -451,6 +488,10 @@ svg {
 
 .reward-info h3 {
   margin: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  line-height: 1.25;
 }
 
 .reward-info .price-tag {
@@ -473,7 +514,8 @@ svg {
 }
 
 .reward-card button {
-  min-width: 70px;
+  width: 100%;
+  min-width: 0;
   background: #fff8e7;
 }
 
@@ -962,8 +1004,8 @@ svg {
 
 .tab-bar {
   position: fixed;
-  left: max(14px, calc((100vw - 720px) / 2 + 14px));
-  right: max(14px, calc((100vw - 720px) / 2 + 14px));
+  left: max(14px, calc((100vw - 960px) / 2 + 14px));
+  right: max(14px, calc((100vw - 960px) / 2 + 14px));
   bottom: calc(10px + var(--safe-bottom));
   z-index: 20;
   height: 78px;
@@ -985,10 +1027,10 @@ svg {
 
 .tab-bar button {
   height: 58px;
-  display: grid;
-  grid-template-rows: 34px auto;
-  place-items: center;
-  gap: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 0;
   border-radius: 28px;
   color: var(--island-muted);
@@ -1016,7 +1058,7 @@ svg {
 .tab-bar button.active svg {
   background: var(--island-primary);
   box-shadow: 0 5px 0 rgba(80, 185, 171, 0.45);
-  transform: translateY(-4px) rotate(-4deg);
+  transform: rotate(-4deg);
 }
 
 .tab-bar button:active {
@@ -1438,6 +1480,59 @@ svg {
   animation: fall 1.3s ease-in forwards;
 }
 
+.crown-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.crown-burst-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 26px;
+  border: 3px solid #fff8e7;
+  border-radius: 999px;
+  color: #794f27;
+  background: linear-gradient(135deg, #fff8e7, #f7cd67);
+  box-shadow: 0 9px 0 #dba90e, 0 22px 48px rgba(61, 52, 40, 0.22);
+  font-size: 1.24rem;
+  font-weight: 900;
+  animation: crownBurstPop 1.25s ease-out forwards;
+}
+
+.crown-burst-badge svg {
+  width: 38px;
+  height: 38px;
+  color: #ffb447;
+  filter: drop-shadow(0 3px 0 rgba(121, 79, 39, 0.16));
+}
+
+@keyframes crownBurstPop {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.72) rotate(-8deg);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12) rotate(3deg);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1) rotate(0deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-42px) scale(0.92) rotate(4deg);
+  }
+}
+
 @keyframes fall {
   to {
     transform: translateY(110vh) rotate(360deg);
@@ -1446,7 +1541,7 @@ svg {
 
 @media (min-width: 640px) {
   .task-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -1466,7 +1561,7 @@ svg {
   }
 
   .task-card {
-    min-height: 198px;
+    min-height: 176px;
     padding: 14px 10px;
   }
 
