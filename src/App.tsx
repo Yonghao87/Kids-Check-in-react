@@ -336,7 +336,7 @@ export function App() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        setData({ ...defaultData, ...parsed });
+        setData(normalizeData(parsed));
         setToast('导入成功');
       } catch {
         setToast('导入失败');
@@ -945,25 +945,62 @@ function loadData(): AppData {
   try {
     const saved = localStorage.getItem(storageKey);
     if (!saved) return cloneData(defaultData);
-    return normalizeData({ ...cloneData(defaultData), ...JSON.parse(saved) });
+    return normalizeData(JSON.parse(saved));
   } catch {
     return cloneData(defaultData);
   }
 }
 
-function normalizeData(data: AppData): AppData {
-  const previousTasks = Array.isArray(data.tasks) ? data.tasks : [];
+function normalizeData(source: unknown): AppData {
+  const input = isRecord(source) ? source : {};
+  const previousTasks = readArray(input.tasks) ?? readArray(input.subjects) ?? [];
+  const previousRewards = readArray(input.rewards) ?? readArray(input.gifts) ?? [];
+  const previousHistory = readArray(input.history) ?? [];
   const legacyNameMap: Record<string, string> = {
     古诗背诵: '语文',
     家务帮手: '家务助手',
   };
   const scoreByName = new Map<string, number>();
-  previousTasks.forEach(task => {
-    scoreByName.set(legacyNameMap[task.name] ?? task.name, task.score || 0);
+  previousTasks.forEach((item, index) => {
+    if (!isRecord(item)) return;
+    const rawName = readString(item.name) || initialTasks[index]?.name;
+    if (!rawName) return;
+    scoreByName.set(legacyNameMap[rawName] ?? rawName, readNumber(item.score) ?? 0);
   });
 
+  const rewards = previousRewards.length
+    ? previousRewards.flatMap((item, index) => {
+        if (!isRecord(item)) return [];
+        const name = readString(item.name);
+        if (!name) return [];
+        return [{
+          id: readNumber(item.id) ?? Date.now() + index,
+          name,
+          cost: Math.max(1, readNumber(item.cost) ?? 1),
+        }];
+      })
+    : cloneData(initialRewards);
+
   return {
-    ...data,
+    ...cloneData(defaultData),
+    childName: readString(input.childName) || readString(input.userName) || defaultData.childName,
+    rewards,
+    crowns: readNumber(input.crowns) ?? readNumber(input.totalCrowns) ?? defaultData.crowns,
+    history: previousHistory.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const message = readString(item.message) || readString(item.msg);
+      if (!message) return [];
+      const rawType = readString(item.type);
+      const value = readNumber(item.value) ?? readNumber(item.val) ?? 0;
+      return [{
+        id: readNumber(item.id) ?? Date.now() + index,
+        time: readString(item.time) || '',
+        message,
+        value,
+        type: rawType === 'spend' || rawType === 'system' ? rawType : value < 0 ? 'system' : 'add',
+      }];
+    }),
+    pin: readString(input.pin) || null,
     tasks: initialTasks.map(task => ({
       ...task,
       score: scoreByName.get(task.name) ?? 0,
@@ -971,8 +1008,24 @@ function normalizeData(data: AppData): AppData {
   };
 }
 
-function cloneData(data: AppData): AppData {
+function cloneData<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readArray(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? value : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function buildCertificateSvg({
