@@ -336,8 +336,10 @@ export function App() {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        setData(normalizeData(parsed));
-        setToast('导入成功');
+        const imported = normalizeData(parsed);
+        setData(imported);
+        const importedStars = imported.tasks.reduce((sum, task) => sum + task.score, 0);
+        setToast(`导入成功：${imported.childName}，${importedStars} 星，${imported.crowns} 皇冠`);
       } catch {
         setToast('导入失败');
       }
